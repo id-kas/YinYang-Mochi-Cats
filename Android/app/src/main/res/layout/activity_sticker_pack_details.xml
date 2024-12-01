@@ -170,6 +170,33 @@
 
             </FrameLayout>
 
+            <FrameLayout
+                android:id="@+id/edit_stickers"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:background="@drawable/btn_green"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless"
+                android:orientation="vertical"
+                android:layout_marginTop="16dp"> <!-- to prevent the btns from touching -->
+
+                <TextView
+                    style="@style/StickerPreviewButtonText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:background="@android:color/transparent"
+                    android:clickable="false"
+                    android:drawablePadding="8dp"
+                    android:focusable="false"
+                    android:foreground="@android:color/transparent"
+                    android:text="@string/edit_stickers" />
+
+
+            </FrameLayout>
+
             <TextView
                 android:id="@+id/sticker_pack_details_tap_to_preview"
                 android:layout_width="match_parent"
@@ -179,6 +206,8 @@
                 android:text="@string/sticker_pack_details_tap_to_preview" />
         </LinearLayout>
 
-
     </FrameLayout>
+
+
+
 </LinearLayout>
