@@ -17,6 +17,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewTreeObserver;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -27,6 +28,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.facebook.drawee.view.SimpleDraweeView;
 
 import java.lang.ref.WeakReference;
+import android.widget.Toast;
+import android.util.Log;
+
+
 
 public class StickerPackDetailsActivity extends AddStickerPackActivity {
 
@@ -51,6 +56,8 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
     private StickerPreviewAdapter stickerPreviewAdapter;
     private int numColumns;
     private View addButton;
+
+    private View editButton;
     private View alreadyAddedText;
     private StickerPack stickerPack;
     private View divider;
@@ -69,6 +76,7 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         TextView packSizeTextView = findViewById(R.id.pack_size);
         SimpleDraweeView expandedStickerView = findViewById(R.id.sticker_details_expanded_sticker);
 
+        // --- add pack button ---
         addButton = findViewById(R.id.add_to_whatsapp_button);
         alreadyAddedText = findViewById(R.id.already_added_text);
         layoutManager = new GridLayoutManager(this, 1);
@@ -85,12 +93,29 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
         packPublisherTextView.setText(stickerPack.publisher);
         packTrayIcon.setImageURI(StickerPackLoader.getStickerAssetUri(stickerPack.identifier, stickerPack.trayImageFile));
         packSizeTextView.setText(Formatter.formatShortFileSize(this, stickerPack.getTotalSize()));
+        // this is the listener that actually handles the button's function
         addButton.setOnClickListener(v -> addStickerPackToWhatsApp(stickerPack.identifier, stickerPack.name));
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(showUpButton);
             getSupportActionBar().setTitle(showUpButton ? getResources().getString(R.string.title_activity_sticker_pack_details_multiple_pack) : getResources().getQuantityString(R.plurals.title_activity_sticker_packs_list, 1));
         }
         findViewById(R.id.sticker_pack_animation_indicator).setVisibility(stickerPack.animatedStickerPack ? View.VISIBLE : View.GONE);
+        // ---
+
+        editButton = findViewById(R.id.edit_stickers_btn);
+        if (editButton == null) {
+            Log.d("Debug", "Button not found!");
+        }
+        editButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d("Debug", "HEEELLLO");
+                Toast.makeText(StickerPackDetailsActivity.this, "Button clicked!", Toast.LENGTH_SHORT).show();
+                Intent switchToEdit = new Intent(StickerPackDetailsActivity.this, EditStickerActivity.class);
+                startActivity(switchToEdit);
+            }
+        });
+
     }
 
     private void launchInfoActivity(String publisherWebsite, String publisherEmail, String privacyPolicyWebsite, String licenseAgreementWebsite, String trayIconUriString) {

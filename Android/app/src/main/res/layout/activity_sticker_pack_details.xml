@@ -171,16 +171,16 @@
             </FrameLayout>
 
             <FrameLayout
-                android:id="@+id/edit_stickers"
+                android:id="@+id/edit_stickers_btn"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
+                android:layout_marginTop="16dp"
                 android:background="@drawable/btn_green"
                 android:clickable="true"
                 android:focusable="true"
                 android:foreground="?attr/selectableItemBackgroundBorderless"
-                android:orientation="vertical"
-                android:layout_marginTop="16dp"> <!-- to prevent the btns from touching -->
+                android:orientation="vertical"> <!-- to prevent the btns from touching -->
 
                 <TextView
                     style="@style/StickerPreviewButtonText"
