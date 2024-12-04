@@ -13,7 +13,7 @@
         android:background="#CCCCCC"
         android:contentDescription="Image Preview"
         android:scaleType="centerCrop"
-        android:visibility="invisible"
+        android:visibility="visible"
         app:layout_constraintBottom_toTopOf="@+id/middle_divider"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.545"
