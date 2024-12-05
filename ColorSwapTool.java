@@ -24,8 +24,8 @@ public class ColorSwapTool {
 
         // load image into BufferedImage data structure
         // File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\mouth_test.jpg"); 
-        File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\piggy.jpg"); 
-        // File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\lounging.jpg"); 
+        // File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\piggy.jpg"); 
+        File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\lounging.jpg"); 
         try {
             BufferedImage image = ImageIO.read(inputFile);
 
@@ -38,7 +38,7 @@ public class ColorSwapTool {
             BufferedImage swappedImage = swapColors(image);
 
             // Save the new image with swapped colors
-            File outputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\out_piggy.jpg"); // Output file path
+            File outputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\out.jpg"); // Output file path
             ImageIO.write(swappedImage, "JPG", outputFile); 
             System.out.println("Image saved with swapped colors!");
 
@@ -141,19 +141,33 @@ public class ColorSwapTool {
 
         int[] actual_components = int_to_Color(actual);
 
+        double max_deviation = tolerance * 255;
+
         double max_red_deviation = target.getRed() * tolerance;
         double max_green_deviation = target.getGreen() * tolerance;
         double max_blue_deviation = target.getBlue() * tolerance;
 
-        if (Math.abs(actual_components[0] - target.getRed()) > max_red_deviation) {
+        // if (Math.abs(actual_components[0] - target.getRed()) > max_red_deviation) {
+        //     return false;
+        // }
+
+        // if (Math.abs(actual_components[1] - target.getGreen()) > max_green_deviation) {
+        //     return false;
+        // }
+
+        // if (Math.abs(actual_components[2] - target.getBlue()) > max_blue_deviation) {
+        //     return false;
+        // }
+
+        if (Math.abs(actual_components[0] - target.getRed()) > max_deviation) {
             return false;
         }
 
-        if (Math.abs(actual_components[1] - target.getGreen()) > max_green_deviation) {
+        if (Math.abs(actual_components[1] - target.getGreen()) > max_deviation) {
             return false;
         }
 
-        if (Math.abs(actual_components[2] - target.getBlue()) > max_blue_deviation) {
+        if (Math.abs(actual_components[2] - target.getBlue()) > max_deviation)  {
             return false;
         }
 
@@ -174,8 +188,18 @@ public class ColorSwapTool {
                 int pixelColor = originalImage.getRGB(x, y);
 
                 // Compare the pixel color to color1 or color2 and swap accordingly
-                if (is_within_tolerance(pixelColor, white, 0.07)) {
+                if (is_within_tolerance(pixelColor, white, 0.08)) {
                     swappedImage.setRGB(x, y, gray.getRGB());
+                // if (is_within_tolerance(pixelColor, white, 0.08)) {
+                //     if (is_encircled(x, y, originalImage, white, border, 0.7)) {
+                //         swappedImage.setRGB(x, y, gray.getRGB());
+                //     }
+                //     else if (is_within_tolerance(pixelColor, white, 0.0)) {
+                //         swappedImage.setRGB(x, y, gray.getRGB());
+                //     }
+                //     else {
+                //         swappedImage.setRGB(x, y, pixelColor);
+                //     }
                 } else if (is_within_tolerance(pixelColor, gray, 0.1)) {
                     swappedImage.setRGB(x, y, white.getRGB());
                 } else if (is_within_tolerance(pixelColor, white_shadow, 0.05)) {
