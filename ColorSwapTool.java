@@ -1,4 +1,7 @@
+package ColorSwapper;
 import javax.imageio.ImageIO;
+
+
 import java.awt.*;
 import java.awt.datatransfer.FlavorListener;
 import java.awt.image.BufferedImage;
@@ -15,6 +18,7 @@ public class ColorSwapTool {
     public static final Color gray_shadow = new Color(185, 164, 159);
     public static final Color border = new Color(60, 10, 0);
     public static final Color green = new Color(0, 255, 0);
+    public static CIELab lab = CIELab.getInstance();
 
 
     public static void main(String[] args) {
@@ -25,7 +29,7 @@ public class ColorSwapTool {
         // load image into BufferedImage data structure
         // File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\mouth_test.jpg"); 
         // File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\piggy.jpg"); 
-        File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\lounging.jpg"); 
+        File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\piggy.jpg"); 
         try {
             BufferedImage image = ImageIO.read(inputFile);
 
@@ -80,49 +84,49 @@ public class ColorSwapTool {
         int x_copy = x;
         int y_copy = y;
         // up
-        while (y_copy > 0 && is_within_tolerance(img.getRGB(x_copy, y_copy), currentColor, tolerance)) {
+        while (y_copy > 0 && naive_is_within_tolerance(img.getRGB(x_copy, y_copy), currentColor, tolerance)) {
             y_copy--;
         }
         if (y_copy - for_good_measure > 0) {
             y_copy -= for_good_measure;
         }
         
-        if (is_within_tolerance(img.getRGB(x_copy, y_copy), encircling, tolerance)) {
+        if (naive_is_within_tolerance(img.getRGB(x_copy, y_copy), encircling, tolerance)) {
             borders++;
         }
 
         y_copy = y;
         // down
-        while (y_copy < height - 1 && is_within_tolerance(img.getRGB(x_copy, y_copy), currentColor, tolerance)) {
+        while (y_copy < height - 1 && naive_is_within_tolerance(img.getRGB(x_copy, y_copy), currentColor, tolerance)) {
             y_copy++;
         }
         if (y_copy + for_good_measure < height -1) {
             y_copy += for_good_measure;
         }
-        if (is_within_tolerance(img.getRGB(x_copy, y_copy), encircling, tolerance)) {
+        if (naive_is_within_tolerance(img.getRGB(x_copy, y_copy), encircling, tolerance)) {
             borders++;
         }
 
         // left
-        while (x_copy > 0 && is_within_tolerance(img.getRGB(x_copy, y_copy), currentColor, tolerance)) {
+        while (x_copy > 0 && naive_is_within_tolerance(img.getRGB(x_copy, y_copy), currentColor, tolerance)) {
             x_copy--;
         }
         if (x_copy - for_good_measure > 0) {
             x_copy -= for_good_measure;
         }
-        if (is_within_tolerance(img.getRGB(x_copy, y_copy), encircling, tolerance)) {
+        if (naive_is_within_tolerance(img.getRGB(x_copy, y_copy), encircling, tolerance)) {
             borders++;
         }
 
         x_copy = x;
         // right
-        while (x_copy < width - 1 && is_within_tolerance(img.getRGB(x_copy, y_copy), currentColor, tolerance)) {
+        while (x_copy < width - 1 && naive_is_within_tolerance(img.getRGB(x_copy, y_copy), currentColor, tolerance)) {
             x_copy++;
         }
         if (x_copy + for_good_measure < width - 1) {
             x_copy += for_good_measure;
         }
-        if (is_within_tolerance(img.getRGB(x_copy, y_copy), encircling, tolerance)) {
+        if (naive_is_within_tolerance(img.getRGB(x_copy, y_copy), encircling, tolerance)) {
             borders++;
         }
 
@@ -133,7 +137,7 @@ public class ColorSwapTool {
         return borders == 4;
     }
 
-    public static boolean is_within_tolerance(int actual, Color target, double tolerance) {
+    public static boolean naive_is_within_tolerance(int actual, Color target, double tolerance) {
 
         if (tolerance > 1 || tolerance < 0) {
             System.out.println("Tolerance value invalid.");
@@ -143,9 +147,9 @@ public class ColorSwapTool {
 
         double max_deviation = tolerance * 255;
 
-        double max_red_deviation = target.getRed() * tolerance;
-        double max_green_deviation = target.getGreen() * tolerance;
-        double max_blue_deviation = target.getBlue() * tolerance;
+        // double max_red_deviation = target.getRed() * tolerance;
+        // double max_green_deviation = target.getGreen() * tolerance;
+        // double max_blue_deviation = target.getBlue() * tolerance;
 
         // if (Math.abs(actual_components[0] - target.getRed()) > max_red_deviation) {
         //     return false;
@@ -174,6 +178,65 @@ public class ColorSwapTool {
         return true;
     }
 
+    public static boolean euclidian_is_within_tolerance(int actual, Color target, double tolerance) {
+
+        if (tolerance > 1 || tolerance < 0) {
+            System.out.println("Tolerance value invalid.");
+        }
+
+        int[] actual_components = int_to_Color(actual);
+
+        double red_term = Math.pow((actual_components[0] - target.getRed()), 2);
+        double green_term = Math.pow((actual_components[1] - target.getGreen()), 2);
+        double blue_term =Math.pow((actual_components[2] - target.getBlue()), 2);
+        double difference = Math.sqrt(red_term + green_term + blue_term);
+
+        // double square_255 = 255*255;
+        // double percentage_difference = distance/Math.sqrt(255*255*3);
+        double percentage_difference = difference / 441;
+
+        return percentage_difference <= tolerance;
+    }
+
+
+
+  public static boolean euclidian_LAB_is_within_tolerance(int actual, Color target, double tolerance) {
+
+        if (tolerance > 1 || tolerance < 0) {
+            System.out.println("Tolerance value invalid.");
+        }
+
+        int[] actual_components_int = int_to_Color(actual);
+
+        float[] actual_components = new float[] {(float) actual_components_int[0], (float) actual_components_int[1], (float) actual_components_int[2]};
+        float[] target_components = new float[] {(float) target.getRed(), (float) target.getGreen(), (float) target.getBlue()};
+
+        float[] actual_LAB = lab.fromRGB(actual_components);
+        float[] target_LAB = lab.fromRGB(target_components);
+
+
+        double red_term = Math.pow((actual_LAB[0] - target_LAB[0]), 2);
+        double green_term = Math.pow((actual_LAB[1] - target_LAB[1]), 2);
+        double blue_term =Math.pow((actual_LAB[2] - target_LAB[2]), 2);
+        double difference = Math.sqrt(red_term + green_term + blue_term);
+
+        // double square_100 = 100*100;
+        // double square_359 = 359*359;
+        // double percentage_difference = distance/Math.sqrt(square_100*2 + square_359);
+        double percentage_difference = difference;
+
+        return percentage_difference <= tolerance;
+    }
+
+    public static boolean is_within_tolerance(int actual, Color target, double tolerance) {
+
+        // return naive_is_within_tolerance(actual, target, tolerance);
+        return euclidian_is_within_tolerance(actual, target, tolerance);
+        // return  euclidian_LAB_is_within_tolerance(actual, target, tolerance);
+
+    }
+
+
     // Method to swap two colors in the BufferedImage
     public static BufferedImage swapColors(BufferedImage originalImage) {
         int width = originalImage.getWidth();
@@ -188,38 +251,31 @@ public class ColorSwapTool {
                 int pixelColor = originalImage.getRGB(x, y);
 
                 // Compare the pixel color to color1 or color2 and swap accordingly
-                if (is_within_tolerance(pixelColor, white, 0.08)) {
-                    swappedImage.setRGB(x, y, gray.getRGB());
-                // if (is_within_tolerance(pixelColor, white, 0.08)) {
-                //     if (is_encircled(x, y, originalImage, white, border, 0.7)) {
-                //         swappedImage.setRGB(x, y, gray.getRGB());
-                //     }
-                //     else if (is_within_tolerance(pixelColor, white, 0.0)) {
-                //         swappedImage.setRGB(x, y, gray.getRGB());
-                //     }
-                //     else {
-                //         swappedImage.setRGB(x, y, pixelColor);
-                //     }
-                } else if (is_within_tolerance(pixelColor, gray, 0.1)) {
-                    swappedImage.setRGB(x, y, white.getRGB());
-                } else if (is_within_tolerance(pixelColor, white_shadow, 0.05)) {
-                    if (is_encircled(x, y, originalImage, white_shadow, white, 0.1)) { // in this case, it's the cheek, not a shadow (they're roughly the same color)
+                if (is_within_tolerance(pixelColor, white_shadow, 0.05)) { // how likely it is to find a shadow
+                    if (is_encircled(x, y, originalImage, white_shadow, white, 0.09)) { // in this case, it's the cheek, not a shadow (they're roughly the same color) // how likely it is to think the shadow is a cheek
                         swappedImage.setRGB(x, y, gray_cheek.getRGB());
                         continue;
                     }
                     swappedImage.setRGB(x, y, gray_shadow.getRGB());
-                } else if (is_within_tolerance(pixelColor, gray_shadow, 0.1)) {
+                } 
+                else if (is_within_tolerance(pixelColor, white, 0.15)) {
+                    swappedImage.setRGB(x, y, gray.getRGB());
+                } else if (is_within_tolerance(pixelColor, gray, 0.1)) {
+                    swappedImage.setRGB(x, y, white.getRGB());
+                } 
+                else if (is_within_tolerance(pixelColor, gray_shadow, 0.1)) {
                     swappedImage.setRGB(x, y, white_shadow.getRGB());
-                } else if (is_within_tolerance(pixelColor, white_cheek, 0.04)) {
-                    swappedImage.setRGB(x, y, gray_cheek.getRGB());
-                } else if (is_within_tolerance(pixelColor, gray_cheek, 0.15)) {
-                    if (is_encircled(x, y, originalImage, gray_cheek, border, 0.5)) { // in this case, it's the mouth, not the cheeks (they're the same color)
+                } 
+                // else if (is_within_tolerance(pixelColor, white_cheek, 0.1)) { // the vast majority of this already gets caught by white_shadow
+                //     swappedImage.setRGB(x, y, green.getRGB());} 
+                else if (is_within_tolerance(pixelColor, gray_cheek, 0.05)) {
+                    if (is_encircled(x, y, originalImage, gray_cheek, border, 0.1)) { // in this case, it's the mouth, not the cheeks (they're the same color)
                         swappedImage.setRGB(x, y, pixelColor);
-                        System.out.println("BORDERS");
+                        System.out.println("BORDERS"); 
                         continue;
                     }
                     else {
-                        swappedImage.setRGB(x, y, white_cheek.getRGB());
+                        swappedImage.setRGB(x, y, gray_cheek.getRGB()); //TODO it tends to think the ears are cheek too. But the encircle check doesn't work there bc they*re surrounded by white just like the cheeks
                     }
 
                     
