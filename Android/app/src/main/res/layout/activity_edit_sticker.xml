@@ -37,20 +37,20 @@
         android:layout_width="200dp"
         android:layout_height="23dp"
         android:layout_marginStart="24dp"
-        android:layout_marginTop="556dp"
+        android:layout_marginTop="16dp"
         android:layout_marginBottom="40dp"
         app:layout_constraintBottom_toTopOf="@+id/swap_btn"
         app:layout_constraintStart_toEndOf="@+id/tolerance_text"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/image_of_edited_sticker" />
 
 
     <View
         android:id="@+id/middle_divider"
         android:layout_width="409dp"
         android:layout_height="1dp"
-        android:layout_marginBottom="32dp"
+        android:layout_marginBottom="256dp"
         android:background="?android:attr/listDivider"
-        app:layout_constraintBottom_toTopOf="@+id/swap_color_pickers_btn"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent" />
@@ -71,24 +71,40 @@
         android:id="@+id/swap_btn"
         android:layout_width="128dp"
         android:layout_height="73dp"
-        android:layout_marginBottom="32dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginBottom="80dp"
         android:background="#4CAF50"
         android:text="Swap!"
         android:textStyle="bold"
         app:backgroundTintMode="add"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <ImageButton
-        android:id="@+id/swap_color_pickers_btn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="32dp"
-        app:layout_constraintBottom_toTopOf="@+id/tolerance_slider"
+    <Button
+        android:id="@+id/save_btn"
+        android:layout_width="128dp"
+        android:layout_height="73dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginBottom="80dp"
+        android:background="#F0B7B7"
+        android:text="Make Sticker"
+        android:textStyle="bold"
+        app:backgroundTintMode="add"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:srcCompat="@android:drawable/stat_notify_sync_noanim" />
+        app:layout_constraintStart_toStartOf="@+id/download_btn" />
+
+    <Button
+        android:id="@+id/download_btn"
+        android:layout_width="113dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="44dp"
+        android:layout_marginBottom="16dp"
+        android:background="#A69B9B"
+        android:text="Download"
+        android:textSize="10sp"
+        app:backgroundTintMode="add"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>

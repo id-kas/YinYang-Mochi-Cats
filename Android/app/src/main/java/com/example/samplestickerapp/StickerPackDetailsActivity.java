@@ -110,7 +110,7 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
             @Override
             public void onClick(View v) {
                 Log.d("Debug", "HEEELLLO");
-                Toast.makeText(StickerPackDetailsActivity.this, "Button clicked!", Toast.LENGTH_SHORT).show();
+                //Toast.makeText(StickerPackDetailsActivity.this, "Button clicked!", Toast.LENGTH_SHORT).show();
                 Intent switchToEdit = new Intent(StickerPackDetailsActivity.this, EditStickerActivity.class);
                 startActivity(switchToEdit);
             }
