@@ -50,7 +50,8 @@ public class ColorSwapper {
         // the borders may not be completely sharp; this is meant to jump inside them to get higher color accuracy
         // this calculation assumes that the sticker is roughly square
         // print(width);
-        int for_good_measure = (int)((width * 0.0138)/2.0);
+        //int for_good_measure = (int)((width * 0.0138)/2.0);
+        int for_good_measure = 0;
         // print(for_good_measure);
 
         // checks in 4 directions
@@ -140,45 +141,38 @@ public class ColorSwapper {
         int width = originalImage.getWidth();
         int height = originalImage.getHeight();
 
-        // Create a new Bitmap to store the result
         Bitmap swappedImage = Bitmap.createBitmap(width, height, originalImage.getConfig());
 
-
-        // Iterate through each pixel
         for (int x = 0; x < width; x++) {
             for (int y = 0; y < height; y++) {
                 int pixelColor = originalImage.getPixel(x, y);
 
-                // Compare the pixel color to color1 or color2 and swap accordingly
                 if (is_within_tolerance(pixelColor, white_shadow, 0.05)) { // how likely it is to find a shadow
                     if (is_encircled(x, y, originalImage, pixelColor, white, 0.04)) { // in this case, it's the cheek, not a shadow (they're roughly the same color) // how likely it is to think the shadow is a cheek
                         swappedImage.setPixel(x, y, gray_cheek);
                         continue;
                     }
                     swappedImage.setPixel(x, y, gray_shadow);
-                }
-                else if (is_within_tolerance(pixelColor, white, 0.15)) {
+                } else if (is_within_tolerance(pixelColor, white, 0.15)) {
                     swappedImage.setPixel(x, y, gray);
-                } else if (is_within_tolerance(pixelColor, gray, 0.1)) {
+                } else if (is_within_tolerance(pixelColor, gray, 0.05)) {
                     swappedImage.setPixel(x, y, white);
-                }
-                else if (is_within_tolerance(pixelColor, gray_shadow, 0.1)) {
+                } else if (is_within_tolerance(pixelColor, gray_shadow, 0.1)) {
                     swappedImage.setPixel(x, y, white_shadow);
                 }
                 // else if (is_within_tolerance(pixelColor, white_cheek, 0.1)) { // the vast majority of this already gets caught by white_shadow
                 //     swappedImage.setRGB(x, y, green);}
-                else if (is_within_tolerance(pixelColor, gray_cheek, 0.08)) {
-                    if (is_encircled(x, y, originalImage, pixelColor, border, 0.05)) { // in this case, it's the mouth, not the cheeks (they're the same color)
-                        swappedImage.setPixel(x, y, pixelColor);
-                        System.out.println("BORDERS");
-                        continue;
-                    }
-                    else {
-                        swappedImage.setPixel(x, y, white_cheek); //TODO it tends to think the ears are cheek too. But the encircle check doesn't work there bc they*re surrounded by white just like the cheeks
-                    }
+//                else if (is_within_tolerance(pixelColor, gray_cheek, 0.2)) {
+//                    if (is_encircled(x, y, originalImage, pixelColor, border, 0.1)) { // in this case, it's the mouth, not the cheeks (they're the same color)
+//                        swappedImage.setPixel(x, y, pixelColor);
+//                        continue;
+//                    }
+//                    else {
+//                        swappedImage.setPixel(x, y, white_cheek); //TODO it tends to think the ears are cheek too. But the encircle check doesn't work there bc they*re surrounded by white just like the cheeks
+//                    }
+            //  }
 
-
-                } else {
+                else {
                     swappedImage.setPixel(x, y, pixelColor);
                 }
             }
