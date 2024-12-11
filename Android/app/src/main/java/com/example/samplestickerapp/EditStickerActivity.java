@@ -48,6 +48,7 @@ public class EditStickerActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getSupportActionBar().setTitle("Color Swap");
         setContentView(R.layout.activity_edit_sticker);
 
         imageView = findViewById(R.id.image_of_edited_sticker);
@@ -58,15 +59,20 @@ public class EditStickerActivity extends AppCompatActivity {
         imageOfEditedSticker = findViewById(R.id.image_of_edited_sticker);
 
         addImageBtn.setOnClickListener(v -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { // check if android version is high enough for permissions to even exist
-                if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) // if permission for external storage hasn't been granted yet, ask for it
-                        != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {  // Check if Android 13 or above
+                if (checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+                    requestPermissions(new String[]{Manifest.permission.READ_MEDIA_IMAGES}, PERMISSION_REQUEST_CODE);
+                } else {
+                    openImagePicker();
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {  // For Android 6.0 to 12
+                if (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                     requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
                 } else {
                     openImagePicker();
                 }
             } else {
-                openImagePicker();
+                openImagePicker();  // No permissions needed for older Android versions
             }
         });
 
@@ -100,16 +106,18 @@ public class EditStickerActivity extends AppCompatActivity {
 
 
         saveBtn.setOnClickListener(v -> {
-            Bitmap bitmap = null;
-            try  {
-                bitmap = ((BitmapDrawable) imageOfEditedSticker.getDrawable()).getBitmap();
-            }
-            catch (NullPointerException e) {
-                Toast.makeText(EditStickerActivity.this, "No image to use", Toast.LENGTH_SHORT).show();
-                return;
-            }
+//            Bitmap bitmap = null;
+//            try  {
+//                bitmap = ((BitmapDrawable) imageOfEditedSticker.getDrawable()).getBitmap();
+//            }
+//            catch (NullPointerException e) {
+//                Toast.makeText(EditStickerActivity.this, "No image to use", Toast.LENGTH_SHORT).show();
+//                return;
+//            }
 
-            addToStickerPack(bitmap);
+            Toast.makeText(EditStickerActivity.this, "Not yet implemented... :P", Toast.LENGTH_SHORT).show();
+
+            //addToStickerPack(bitmap);
         });
 
 
@@ -159,12 +167,14 @@ public class EditStickerActivity extends AppCompatActivity {
 
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                openImagePicker();
+                openImagePicker();  // Open image picker after permission is granted
             } else {
-                Toast.makeText(this, "Permission Denied", Toast.LENGTH_SHORT).show();
+                // Handle permission denial (optional: show a message to the user)
+                Toast.makeText(this, "Permission denied. Cannot access photos.", Toast.LENGTH_SHORT).show();
             }
         }
     }
+
 
 
     private Bitmap runColorSwapTool(Bitmap inputBitmap) {
@@ -206,27 +216,30 @@ public class EditStickerActivity extends AppCompatActivity {
         }
     }
 
-    private File addToStickerPack(Bitmap bitmap) {
+    //private File addToStickerPack(Bitmap bitmap) {
+//
+//        File folder = new File(getFilesDir(), );
+//        if (!folder.exists()) {
+//            folder.mkdirs();  // Create the folder if it doesn't exist
+//        }
+//
+//        // Create a new file with a unique name
+//        String fileName = "sticker_" + System.currentTimeMillis() + ".webp";
+//        File webpFile = new File(folder, fileName);
+//
+//        try (FileOutputStream out = new FileOutputStream(webpFile)) {
+//            // Compress the Bitmap to WebP format and save it to the file
+//            boolean isSaved = bitmap.compress(Bitmap.CompressFormat.WEBP, 100, out);  // 100 is the quality (0-100)
+//            if (isSaved) {
+//                return webpFile;  // Return the saved WebP file
+//            }
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+        //return null;  // If saving failed, return null
+    //}
 
-        File folder = new File(getFilesDir(), "Android/app/src/main/assets");
-        if (!folder.exists()) {
-            folder.mkdirs();  // Create the folder if it doesn't exist
-        }
-
-        // Create a new file with a unique name
-        String fileName = "sticker_" + System.currentTimeMillis() + ".webp";
-        File webpFile = new File(folder, fileName);
-
-        try (FileOutputStream out = new FileOutputStream(webpFile)) {
-            // Compress the Bitmap to WebP format and save it to the file
-            boolean isSaved = bitmap.compress(Bitmap.CompressFormat.WEBP, 100, out);  // 100 is the quality (0-100)
-            if (isSaved) {
-                return webpFile;  // Return the saved WebP file
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;  // If saving failed, return null
-    }
-
+//    private void addStickerToJSON(int pack_identifier, File sticker_file) {
+//
+//    }
 }

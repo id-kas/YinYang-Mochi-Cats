@@ -15,21 +15,42 @@
       "license_agreement_website": "",
       "stickers": [
         {
-          "image_file": "example_sticker.webp",
+          "image_file": "1.webp",
           "emojis": [
             "☕",
             "🙂"
           ]
         },
         {
-          "image_file": "example_sticker.webp",
+          "image_file": "2.webp",
           "emojis": [
             "😄",
             "😀"
           ]
         },
         {
-          "image_file": "example_sticker.webp",
+          "image_file": "3.webp",
+          "emojis": [
+            "😄",
+            "😀"
+          ]
+        },
+        {
+          "image_file": "4.webp",
+          "emojis": [
+            "😄",
+            "😀"
+          ]
+        },
+        {
+          "image_file": "5.webp",
+          "emojis": [
+            "😄",
+            "😀"
+          ]
+        },
+        {
+          "image_file": "6.webp",
           "emojis": [
             "😄",
             "😀"
