@@ -27,10 +27,13 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.facebook.drawee.view.SimpleDraweeView;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.ref.WeakReference;
 import android.widget.Toast;
 import android.util.Log;
-
+import java.io.FileOutputStream;
 
 
 public class StickerPackDetailsActivity extends AddStickerPackActivity {
@@ -236,4 +239,26 @@ public class StickerPackDetailsActivity extends AddStickerPackActivity {
             }
         }
     }
+
+    // app needs to be able to modify contents.json at runtime but contents.json is in assets, which is read-only at runtime
+    // therefore, a copy of it is created on the user's device instead which CAN be modified and is used instead of the og
+    // the copy is only created if the contents.json does not already exist, so it won't be overwritten
+    private void copyContentsJsonToInternalStorage() {
+        File contentsJsonFile = new File(getFilesDir(), "contents.json");
+
+        if (!contentsJsonFile.exists()) {
+            try (InputStream in = getAssets().open("contents.json");
+                 FileOutputStream out = new FileOutputStream(contentsJsonFile)) {
+                byte[] buffer = new byte[1024];
+                int length;
+                // writing it in 1KB chunks for efficiency
+                while ((length = in.read(buffer)) > 0) {
+                    out.write(buffer, 0, length);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
 }

@@ -22,32 +22,6 @@ public class ColorSwapper {
 
 
     public static void main(String[] args) {
-        // TODO leaving webp processing for later
-
-        // load image into BufferedImage data structure
-        // File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\mouth_test.jpg");
-        // File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\piggy.jpg");
-        File inputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\lounging.jpg");
-        try {
-            Bitmap image = BitmapFactory.decodeFile(inputFile.getAbsolutePath());
-
-            if (image == null) {
-                System.err.println("Could not read image. Please ensure the image format is supported.");
-                return;
-            }
-
-            // Perform the color swap
-            Bitmap swappedImage = swapColors(image);
-
-            // Save the new image with swapped colors
-            File outputFile = new File("C:\\Users\\idaka\\Desktop\\YingYang Mochi Cats\\stickers\\out.jpg"); // Output file path
-            FileOutputStream out = new FileOutputStream(outputFile);
-            image.compress(Bitmap.CompressFormat.JPEG, 100, out);
-            System.out.println("Image saved with swapped colors!");
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public static int[] int_to_Color(int color) {
@@ -130,31 +104,6 @@ public class ColorSwapper {
         }
 
         return borders == 4;
-    }
-
-    public static boolean naive_is_within_tolerance(int actual, int target_color, double tolerance) {
-
-        if (tolerance > 1 || tolerance < 0) {
-            System.out.println("Tolerance value invalid.");
-        }
-
-        int[] actual_components = int_to_Color(actual);
-
-        double max_deviation = tolerance * 255;
-
-        if (Math.abs(actual_components[0] - Color.red(target_color)) > max_deviation) {
-            return false;
-        }
-
-        if (Math.abs(actual_components[1] - Color.green(target_color)) > max_deviation) {
-            return false;
-        }
-
-        if (Math.abs(actual_components[2] - Color.blue(target_color)) > max_deviation)  {
-            return false;
-        }
-
-        return true;
     }
 
     public static boolean euclidian_is_within_tolerance(int actual, int target_color, double tolerance) {
