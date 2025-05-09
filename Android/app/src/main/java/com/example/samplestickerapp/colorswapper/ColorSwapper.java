@@ -1,15 +1,13 @@
 package com.example.samplestickerapp.colorswapper;
-
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RecursiveAction;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import android.graphics.Color;
 
+// ok so this handles the computation and splitting up as far as I understand it. It's pretty abstract.
 
+public class ColorSwapper extends RecursiveAction {
 
-public class ColorSwapper {
     public static final int  white = Color.rgb(255, 253, 255);
     public static final int  gray = Color.rgb(203, 190, 184);
     public static final int  white_cheek = Color.rgb(251, 228, 231);
@@ -21,7 +19,109 @@ public class ColorSwapper {
 
 
 
-    public static void main(String[] args) {
+
+    // processing an array is  quicker than a bitmap
+    private int[] src;
+    private int[] dst;
+
+    private Bitmap srcBitmap = null;
+
+    private int start;
+    private int length; // length in PIXELS
+    private int rowLength;
+    private int columnLength;
+
+    // ok so a ~500 x 500 img has around 300'000 pixels
+    // let's say the CPU has 8 cores
+    // once a core is done it takes a new task, so we want multiple per core available to enable balancing
+    // we want the work slices to not be too coarse but also not too small to be meaningful
+    // let's go with 20.000 pixels per slice for now, that would make a normal img about 15 slices
+    protected static int sThreshold = 10000;
+
+    public ColorSwapper(Bitmap original) {
+        this.srcBitmap = original;
+        this.rowLength = original.getWidth();
+        this.columnLength = original.getHeight();
+        this.length = rowLength*columnLength;
+        this.src = bitmapToArray(original);
+        this.dst = new int[length];
+        this.start = 0;
+    }
+
+    private ColorSwapper(int[] src, int[] dst, int start, int length, int rowLength, int columnLength) {
+        this.src = src;
+        this.dst = dst;
+        this.start = start;
+        this.length = length;
+        this.rowLength = rowLength;
+        this.columnLength = columnLength;
+    }
+
+    public Bitmap swapColors() {
+        if (srcBitmap == null) {
+            throw new IllegalStateException("This function should only be used if the ColorSwapper " +
+                    "object was initialized using a Bitmap (public constructor)");
+        }
+
+        ForkJoinPool pool = new ForkJoinPool();
+        pool.invoke(this);
+        Bitmap swappedImageBitmap = Bitmap.createBitmap(srcBitmap.getWidth(), srcBitmap.getHeight(), srcBitmap.getConfig());
+        writeArrayToBitmap(dst, swappedImageBitmap);
+
+        return swappedImageBitmap;
+    }
+
+    private static int[] bitmapToArray(Bitmap src) {
+        int[] srcArray = new int[src.getWidth() * src.getHeight()];
+        src.getPixels(srcArray, 0, src.getWidth(), 0, 0, src.getWidth(), src.getHeight());
+        return srcArray;
+    }
+
+    private static void writeArrayToBitmap(int[] dst, Bitmap src) {
+        src.setPixels(dst, 0, src.getWidth(), 0, 0, src.getWidth(), src.getHeight());
+    }
+
+    protected void computeDirectly() {
+//        System.out.println("I'm doing a task tralala (" + start + ", " + (start+length) + ")");
+        for (int i = start; i < start+length; i++) {
+
+            int pixelColor = src[i];
+
+            if (is_within_tolerance(pixelColor, white_shadow, 0.05)) { // how likely it is to find a shadow
+                if (is_encircled(i, pixelColor, white, 0.04)) { // in this case, it's the cheek, not a shadow (they're roughly the same color) // how likely it is to think the shadow is a cheek
+                    dst[i] = gray_cheek;
+                    continue;
+                }
+                dst[i] = gray_shadow;
+            } else if (is_within_tolerance(pixelColor, white, 0.15)) {
+                dst[i] = gray;
+            } else if (is_within_tolerance(pixelColor, gray, 0.05)) {
+                dst[i] = white;
+            } else if (is_within_tolerance(pixelColor, gray_shadow, 0.1)) {
+                dst[i] = white_shadow;
+            }
+            else {
+                dst[i] = pixelColor;
+            }
+        }
+    }
+
+
+    // This creates the tasks for parallel computation
+    protected void compute() {
+        // if too small do it serially (exit condition of the recursion)
+        if (length < sThreshold) {
+            computeDirectly();
+            return;
+        }
+
+        // otherwise split up the work
+        int split = length / 2;
+
+        invokeAll(new ColorSwapper(src, dst, start, split, rowLength, columnLength),
+                new ColorSwapper(src, dst, start + split, length - split,
+                        rowLength, columnLength));
+
     }
 
     public static int[] int_to_Color(int color) {
@@ -33,74 +133,64 @@ public class ColorSwapper {
         return ret;
     }
 
-    public static void print(int x) {
-        System.out.println(x);
+    private boolean is_in_bounds(int i) {
+        return i >= 0 && i < length;
     }
 
-    public static boolean is_encircled(int x, int y, Bitmap img, int currentColor, int encircling, double tolerance) {
+    private boolean is_encircled(int i, int currentColor, int borderColor, double tolerance) {
         /**
-         checks whether first color encountered in all directions is border color
+         checks whether first color encountered in cardinal directions (up, down, left, right) is borderColor
          currentColor is the color of the area that the current pixel is in
          */
 
         int borders = 0; // if there's 4, the pixel is (likely) surrounded
 
-        int width = img.getWidth();
-        int height = img.getHeight();
-        // the borders may not be completely sharp; this is meant to jump inside them to get higher color accuracy
-        // this calculation assumes that the sticker is roughly square
-        // print(width);
-        //int for_good_measure = (int)((width * 0.0138)/2.0);
-        int for_good_measure = 0;
-        // print(for_good_measure);
+        int max_search_distance = rowLength/10;
 
-        // checks in 4 directions
-        int x_copy = x;
-        int y_copy = y;
-        // up
-        while (y_copy > 0 && is_within_tolerance(img.getPixel(x_copy, y_copy), currentColor, tolerance)) {
-            y_copy--;
+        int i_copy = i;
+        int distance = 0;
+        // go UP til you find a new color
+        while (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], currentColor, tolerance)) {
+            i_copy -= rowLength;
+            distance++;
+            // rowLength ISNT DEFINED YET LMAO
+            if (distance >= max_search_distance) break;
         }
-        if (y_copy - for_good_measure > 0) {
-            y_copy -= for_good_measure;
-        }
-
-        if (is_within_tolerance(img.getPixel(x_copy, y_copy), encircling, tolerance)) {
+        if (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], borderColor, tolerance)) {
             borders++;
         }
 
-        y_copy = y;
-        // down
-        while (y_copy < height - 1 && is_within_tolerance(img.getPixel(x_copy, y_copy), currentColor, tolerance)) {
-            y_copy++;
+        i_copy = i;
+        distance = 0;
+        // go DOWN til you find a new color
+        while (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], currentColor, tolerance)) {
+            i_copy += rowLength;
+            distance++;
+            if (distance >= max_search_distance) break;
         }
-        if (y_copy + for_good_measure < height -1) {
-            y_copy += for_good_measure;
-        }
-        if (is_within_tolerance(img.getPixel(x_copy, y_copy), encircling, tolerance)) {
+        if (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], borderColor, tolerance)) {
             borders++;
         }
 
-        // left
-        while (x_copy > 0 && is_within_tolerance(img.getPixel(x_copy, y_copy), currentColor, tolerance)) {
-            x_copy--;
+        i_copy = i;
+        // go LEFT til you find a new color
+        while (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], currentColor, tolerance)) {
+            i_copy--;
+            distance++;
+            if (distance >= max_search_distance) break;
         }
-        if (x_copy - for_good_measure > 0) {
-            x_copy -= for_good_measure;
-        }
-        if (is_within_tolerance(img.getPixel(x_copy, y_copy), encircling, tolerance)) {
+        if (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], borderColor, tolerance)) {
             borders++;
         }
 
-        x_copy = x;
-        // right
-        while (x_copy < width - 1 && is_within_tolerance(img.getPixel(x_copy, y_copy), currentColor, tolerance)) {
-            x_copy++;
+        i_copy = i;
+        // go RIGHT til you find a new color
+        while (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], currentColor, tolerance)) {
+            i_copy++;
+            distance++;
+            if (distance >= max_search_distance) break;
         }
-        if (x_copy + for_good_measure < width - 1) {
-            x_copy += for_good_measure;
-        }
-        if (is_within_tolerance(img.getPixel(x_copy, y_copy), encircling, tolerance)) {
+        if (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], borderColor, tolerance)) {
             borders++;
         }
 
@@ -134,51 +224,4 @@ public class ColorSwapper {
         return euclidian_is_within_tolerance(actual, target_color, tolerance);
 
     }
-
-
-    // Method to swap two colors in the BufferedImage
-    public static Bitmap swapColors(Bitmap originalImage) {
-        int width = originalImage.getWidth();
-        int height = originalImage.getHeight();
-
-        Bitmap swappedImage = Bitmap.createBitmap(width, height, originalImage.getConfig());
-
-        for (int x = 0; x < width; x++) {
-            for (int y = 0; y < height; y++) {
-                int pixelColor = originalImage.getPixel(x, y);
-
-                if (is_within_tolerance(pixelColor, white_shadow, 0.05)) { // how likely it is to find a shadow
-                    if (is_encircled(x, y, originalImage, pixelColor, white, 0.04)) { // in this case, it's the cheek, not a shadow (they're roughly the same color) // how likely it is to think the shadow is a cheek
-                        swappedImage.setPixel(x, y, gray_cheek);
-                        continue;
-                    }
-                    swappedImage.setPixel(x, y, gray_shadow);
-                } else if (is_within_tolerance(pixelColor, white, 0.15)) {
-                    swappedImage.setPixel(x, y, gray);
-                } else if (is_within_tolerance(pixelColor, gray, 0.05)) {
-                    swappedImage.setPixel(x, y, white);
-                } else if (is_within_tolerance(pixelColor, gray_shadow, 0.1)) {
-                    swappedImage.setPixel(x, y, white_shadow);
-                }
-                // else if (is_within_tolerance(pixelColor, white_cheek, 0.1)) { // the vast majority of this already gets caught by white_shadow
-                //     swappedImage.setRGB(x, y, green);}
-//                else if (is_within_tolerance(pixelColor, gray_cheek, 0.2)) {
-//                    if (is_encircled(x, y, originalImage, pixelColor, border, 0.1)) { // in this case, it's the mouth, not the cheeks (they're the same color)
-//                        swappedImage.setPixel(x, y, pixelColor);
-//                        continue;
-//                    }
-//                    else {
-//                        swappedImage.setPixel(x, y, white_cheek); //TODO it tends to think the ears are cheek too. But the encircle check doesn't work there bc they*re surrounded by white just like the cheeks
-//                    }
-            //  }
-
-                else {
-                    swappedImage.setPixel(x, y, pixelColor);
-                }
-            }
-        }
-        return swappedImage;
-    }
 }
-
-
