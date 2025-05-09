@@ -19,6 +19,7 @@ public class ColorSwapper extends RecursiveAction {
 
 
 
+
     // processing an array is  quicker than a bitmap
     private int[] src;
     private int[] dst;
@@ -120,6 +121,7 @@ public class ColorSwapper extends RecursiveAction {
         invokeAll(new ColorSwapper(src, dst, start, split, rowLength, columnLength),
                 new ColorSwapper(src, dst, start + split, length - split,
                         rowLength, columnLength));
+
     }
 
     public static int[] int_to_Color(int color) {
@@ -142,6 +144,7 @@ public class ColorSwapper extends RecursiveAction {
          */
 
         int borders = 0; // if there's 4, the pixel is (likely) surrounded
+
         int max_search_distance = rowLength/10;
 
         int i_copy = i;
@@ -221,5 +224,4 @@ public class ColorSwapper extends RecursiveAction {
         return euclidian_is_within_tolerance(actual, target_color, tolerance);
 
     }
-
 }
