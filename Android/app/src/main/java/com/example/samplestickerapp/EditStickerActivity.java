@@ -181,6 +181,7 @@ public class EditStickerActivity extends AppCompatActivity {
         // Ensure the input Bitmap is mutable (required for color modification)
         Bitmap mutableBitmap = inputBitmap.copy(Bitmap.Config.ARGB_8888, true);
 
+
         ColorSwapper swap = new ColorSwapper(mutableBitmap);
         return  swap.swapColors();
     }
