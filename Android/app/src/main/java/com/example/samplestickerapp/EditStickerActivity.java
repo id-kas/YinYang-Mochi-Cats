@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -29,7 +30,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
-
+import org.opencv.android.OpenCVLoader;
 
 public class EditStickerActivity extends AppCompatActivity {
     // why is this necessary? lmao
@@ -121,7 +122,14 @@ public class EditStickerActivity extends AppCompatActivity {
         });
 
 
-
+        // needed for image processing
+        if (OpenCVLoader.initLocal()) {
+            Log.i("OpenCV", "OpenCV loaded successfully");
+        } else {
+            Log.e("OpenCV", "OpenCV initialization failed!");
+            (Toast.makeText(this, "OpenCV initialization failed!", Toast.LENGTH_LONG)).show();
+            return;
+        }
 
 
     }

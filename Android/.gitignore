@@ -8,3 +8,9 @@ obj/
 *.iml
 Gemfile.lock
 _site/
+/Android/opencv/
+/Android/opencv2/
+/Android/opencv-android-sdk/
+*.so
+*.dll
+*.dylib

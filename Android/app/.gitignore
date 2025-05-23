@@ -1,1 +1,7 @@
 /build
+opencv/
+opencv2/
+opencv-android-sdk/
+*.so
+*.dll
+*.dylib
