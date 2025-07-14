@@ -8,21 +8,19 @@ import android.graphics.Color;
 
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 import org.opencv.photo.Photo;
 
-import java.util.HashMap;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Queue;
 
-// ok so this handles the computation and splitting up as far as I understand it. It's pretty abstract.
-
+// RecursiveAction is for parallel computation
+// I think it's called recursive bc it splits the data up recursively before handing it off to the threads or sth
 public class ColorSwapper extends RecursiveAction {
 
     public static final int white = Color.rgb(255, 253, 255);
     public static final int gray = Color.rgb(203, 190, 184);
     public static final int white_cheek = Color.rgb(251, 228, 231);
-    //    public static final int  gray_cheek = Color.rgb(255, 159, 140);
     public static final int gray_cheek = Color.rgb(255, 159, 140);
     public static final int white_shadow = Color.rgb(251, 225, 227);
     public static final int gray_shadow = Color.rgb(185, 164, 159);
@@ -30,57 +28,69 @@ public class ColorSwapper extends RecursiveAction {
     public static final int green = Color.rgb(0, 255, 0);
     public static final int blue = Color.rgb(0, 0, 255);
 
-
-    // processing an array is  quicker than a bitmap
+    // bc processing an array is  quicker than a bitmap
     private int[] src;
     private int[] dst;
 
-    private Bitmap srcBitmap = null;
+    private Bitmap srcBitmap;
 
     private int start;
     private int length; // length in PIXELS
     private int rowLength;
     private int columnLength;
-    private ArrayList<Integer> whiteCheeks;
-    private ArrayList<Integer> grayCheeks;
+
 
     // ok so a ~500 x 500 img has around 300'000 pixels
     // let's say the CPU has 8 cores
-    // once a core is done it takes a new task, so we want multiple per core available to enable balancing
+    // once a core is done it takes a new task, so we want multiple tasks per core available to enable balancing
     // we want the work slices to not be too coarse but also not too small to be meaningful
     // let's go with 20.000 pixels per slice for now, that would make a normal img about 15 slices
-    protected static int sThreshold = 10000;
+    protected static int sThreshold = 15000;
 
     public ColorSwapper(Bitmap original) {
         this.srcBitmap = denoiseBitmap(original);
+        this.src = bitmapToArray(srcBitmap);
         this.rowLength = original.getWidth();
         this.columnLength = original.getHeight();
         this.length = rowLength * columnLength;
-        this.src = bitmapToArray(original);
         this.dst = new int[length];
         this.start = 0;
-        this.whiteCheeks = new ArrayList<Integer>();
-        this.grayCheeks = new ArrayList<Integer>();
     }
 
-    private ColorSwapper(int[] src, int[] dst, int start, int length, int rowLength, int columnLength, ArrayList<Integer> whiteCheeks, ArrayList<Integer> grayCheeks) {
+    private ColorSwapper(int[] src, int[] dst, int start, int length, int rowLength, int columnLength) {
         this.src = src;
         this.dst = dst;
         this.start = start;
         this.length = length;
         this.rowLength = rowLength;
         this.columnLength = columnLength;
-        this.whiteCheeks = whiteCheeks;
-        this.grayCheeks = grayCheeks;
     }
 
     private Bitmap denoiseBitmap(Bitmap bitmap) {
         Mat og = new Mat();
         Utils.bitmapToMat(bitmap, og);
         Mat denoised = new Mat();
-        Photo.fastNlMeansDenoising(og, denoised, 10, 7, 21);
-        return Bitmap.createBitmap(denoised.cols(), denoised.rows(), Bitmap.Config.ARGB_8888);
+        Photo.fastNlMeansDenoising(og, denoised, 50, 7, 21);
+
+        Bitmap result = Bitmap.createBitmap(denoised.cols(), denoised.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(denoised, result);
+
+        return result;
     }
+
+    private Bitmap smoothEdges(Bitmap bitmap) {
+        Mat og = new Mat();
+        Utils.bitmapToMat(bitmap, og);
+        Imgproc.cvtColor(og, og, Imgproc.COLOR_RGBA2RGB);
+
+        Mat smoothed = new Mat();
+        Imgproc.bilateralFilter(og, smoothed, 9, 150, 180);
+
+        Bitmap result = Bitmap.createBitmap(smoothed.cols(), smoothed.rows(), Bitmap.Config.ARGB_8888);
+        Utils.matToBitmap(smoothed, result);
+        return result;
+    }
+
 
     public Bitmap swapColors() {
         if (srcBitmap == null) {
@@ -91,10 +101,10 @@ public class ColorSwapper extends RecursiveAction {
         Bitmap swappedImageBitmap = Bitmap.createBitmap(srcBitmap.getWidth(), srcBitmap.getHeight(), srcBitmap.getConfig());
 
         swapCheeks();
-
         swapRest();
-//        swapAreaIter(5, green);
+
         writeArrayToBitmap(dst, swappedImageBitmap);
+        swappedImageBitmap = smoothEdges(swappedImageBitmap);
 
         return swappedImageBitmap;
     }
@@ -107,50 +117,32 @@ public class ColorSwapper extends RecursiveAction {
         return i / rowLength;
     }
 
-    private int up(int i) {
-        if (i - rowLength < 0) {
-            return -1;
-        }
-        return i - rowLength;
+    private int up(int i, int step) {
+        int result = i - rowLength*step;
+        return (is_in_bounds(result)? result : -1);
     }
 
-    private int down(int i) {
-        if (i + rowLength >= length) {
-            return -1;
-        }
-        return i + rowLength;
+    private int down(int i, int step) {
+        int result = i + rowLength*step;
+        return (is_in_bounds(result)? result : -1);
     }
 
-    private int left(int i) {
-        if (i % rowLength == 0) {
-            return -1;
-        }
-        return i - 1;
+    private int left(int i, int step) {
+        int result = i - step;
+        return ((is_in_bounds(result) && getY(result) == getY(i))? result : -1);
     }
 
-    private int right(int i) {
-        if ((i + 1) % rowLength == 0) {
-            return -1;
-        }
-        return i + 1;
-    }
-
-    private HashMap<String, Integer> emptyHitbox() {
-        HashMap<String, Integer> hitbox = new HashMap<>();
-        hitbox.put("leftmost", 0);
-        hitbox.put("rightmost", 0);
-        hitbox.put("topmost", 0);
-        hitbox.put("bottommost", 0);
-
-        return hitbox;
+    private int right(int i, int step) {
+        int result = i + step;
+        return ((is_in_bounds(result) && getY(result) == getY(i))? result : -1);
     }
 
 
-    private void swapAreaIter(int pixelWithinArea, int newColor) {
+    private HashSet<Integer> floodSelection(int pixelWithinArea, double tolerance) {
         // idea: instead of recursion, process one pixel per loop and add 4 pixels to the queue per loop
         // continue processing queue tasks even after adding new pixels is done
-        double tolerance = 0.01;
-        int insideColor = src[pixelWithinArea];
+        HashSet<Integer> selection = new HashSet<>();
+        int color = src[pixelWithinArea];
         HashSet<Integer> alreadyBeen = new HashSet<Integer>();
         Queue<Integer> toDo = new LinkedList<Integer>();
 
@@ -158,22 +150,23 @@ public class ColorSwapper extends RecursiveAction {
         int i;
 
         while(!toDo.isEmpty()) {
+
             i = toDo.poll();
 
             if (alreadyBeen.contains(i)) continue;
             alreadyBeen.add(i);
 
-            if (is_within_tolerance(src[i], insideColor, tolerance)) {
-                src[i] = newColor;
+            if (is_within_tolerance(src[i], color, tolerance)) {
+                selection.add(i);
             }
             else {
                 continue;
             }
 
-            int left = left(i);
-            int right = right(i);
-            int up = up(i);
-            int down = down(i);
+            int left = left(i,1 );
+            int right = right(i, 1);
+            int up = up(i, 1);
+            int down = down(i, 1);
 
 
             if (left != -1) {
@@ -184,35 +177,66 @@ public class ColorSwapper extends RecursiveAction {
             }
             if (up != -1) {
                 toDo.add(up);
-                }
+            }
             if (down != -1) {
                 toDo.add(down);
             }
 
         }
+
+        return selection;
+    }
+
+
+
+    private void floodSwapArea(int pixelWithinArea, int newColor, double tolerance) {
+
+        HashSet<Integer> area = floodSelection(pixelWithinArea, tolerance);
+
+        if (area.size() < length * 0.1 ) {
+            for (int j : area) {
+                src[j] = newColor;
+            }
+        }
     }
 
 
     private void swapCheeks() {
-        // this needs to be done separately bc it would be a mess to run it in parallel
+        // identifying and swapping the cheeks is run sequentially bc doing it in parallel would be a mess
+        // like if a cheek is on a border between two data slices
         int step = 2;
 
-
+        //TODO remove
 //        int cheek = 72 +  313*rowLength;
-//        swapAreaIter(cheek, blue);
-//
-        for (int i = start; i < start+length; i += step) {
+//        floodSwapArea(cheek, blue);
+
+        HashSet<Integer> no = new HashSet<>();
+
+        for (int i = 0; i < length; i += step) {
+
+            if (no.contains(i)) continue;
 
             int pixelColor = src[i];
 
-            if (is_within_tolerance(pixelColor, white_cheek, 0.05)) {
-                if (!is_encircled(i, white_cheek, white, 0.2)) {
-                    swapAreaIter(i, green);
+            //TODO sth is fundamentally wrong here. like when you think about it, I'm not checking from the middle
+            // but from the top left corner
+            if (is_within_tolerance(pixelColor, white_cheek, 0.1)) {
+//                System.out.println("checking");
+                int adjusted = right(down(i, 10),10);
+                if (is_encircled(adjusted, white_cheek, white, 0.1, 0.2)) {
+                    floodSwapArea(adjusted, green, 0.1);
+                    System.out.println("White cheek");
+                }
+                else {
+                    no.addAll(floodSelection(adjusted, 0.05));
                 }
             }
-            else if (is_within_tolerance(pixelColor, gray_cheek, 0.05)) {
-                if (!is_encircled(i, gray_cheek, gray, 0.2)) {
-                    swapAreaIter(i, blue);
+            else if (is_within_tolerance(pixelColor, gray_cheek, 0.1)) {
+                if (is_encircled(i, gray_cheek, gray, 0.1, 0.2)) {
+                    floodSwapArea(i, blue, 0.05);
+                }
+                else {
+                    no.addAll(floodSelection(i, 0.05));
                 }
             }
 
@@ -224,7 +248,6 @@ public class ColorSwapper extends RecursiveAction {
         // the colors of everything but the cheeks are swapped in parallel using multi threading
         ForkJoinPool pool = new ForkJoinPool();
         pool.invoke(this);
-//        writeArrayToBitmap(dst, swappedImageBitmap);
     }
 
     private static int[] bitmapToArray(Bitmap src) {
@@ -238,7 +261,6 @@ public class ColorSwapper extends RecursiveAction {
     }
 
     protected void computeDirectly() {
-//        System.out.println("I'm doing a task tralala (" + start + ", " + (start+length) + ")");
         for (int i = start; i < start+length; i++) {
 
             int pixelColor = src[i];
@@ -252,9 +274,6 @@ public class ColorSwapper extends RecursiveAction {
             if (is_within_tolerance(pixelColor, white_shadow, 0.05)) { // how likely it is to find a shadow
                 dst[i] = gray_shadow;
             }
-            else if (is_within_tolerance(pixelColor, gray_cheek, 0.05)) {
-                dst[i] = white_cheek;
-            }
             else if (is_within_tolerance(pixelColor, white, 0.15)) {
                 dst[i] = gray;
             } else if (is_within_tolerance(pixelColor, gray, 0.05)) {
@@ -262,7 +281,6 @@ public class ColorSwapper extends RecursiveAction {
             } else if (is_within_tolerance(pixelColor, gray_shadow, 0.1)) {
                 dst[i] = white_shadow;
             }
-
             else {
                 dst[i] = pixelColor;
             }
@@ -281,9 +299,9 @@ public class ColorSwapper extends RecursiveAction {
         // otherwise split up the work
         int split = length / 2;
 
-        invokeAll(new ColorSwapper(src, dst, start, split, rowLength, columnLength, whiteCheeks, grayCheeks),
+        invokeAll(new ColorSwapper(src, dst, start, split, rowLength, columnLength),
                 new ColorSwapper(src, dst, start + split, length - split,
-                        rowLength, columnLength, whiteCheeks, grayCheeks));
+                        rowLength, columnLength));
     }
 
     public static int[] int_to_Color(int color) {
@@ -299,92 +317,68 @@ public class ColorSwapper extends RecursiveAction {
         return i >= 0 && i < length;
     }
 
-    private boolean is_encircled(int i, int currentColor, int borderColor, double tolerance) {
+    private enum Direction {
+        UP, DOWN, LEFT, RIGHT
+    }
+
+    private int goDirection(Direction direction, int startPixel, int step) {
+        switch (direction) {
+            case UP:
+                return up(startPixel, step);
+            case DOWN:
+                return down(startPixel, step);
+            case LEFT:
+                return left(startPixel, step);
+            case RIGHT:
+                return right(startPixel, step);
+            default:
+                return -1;
+        }
+    }
+
+    public boolean checkBorderInDirection(int pixel, Direction direction, int currentColor, int borderColor, double insideTolerance, double borderTolerance, int max_search_distance){
+        int step = 2;
+        // in case the jpg noise or whatever else stops us early,
+        // jump a few pixels to be properly in the border color
+        int forGoodMeasure = 10;
+        int distance = 0;
+
+        int maxBorderErrors = 5; // some error is allowed due to jpg noise
+        int errors = 0;
+        // go DIRECTION til you find a new color
+        while (true) {
+            pixel = goDirection(direction, pixel, step);
+            distance += step;
+            if (!is_in_bounds(pixel) || (distance > max_search_distance) || errors > maxBorderErrors) return false;
+
+            if (is_within_tolerance(src[pixel], currentColor, insideTolerance)) {
+                continue;
+            }
+            else if (!is_within_tolerance(src[pixel], borderColor, borderTolerance)) {
+
+                errors++;
+                pixel = goDirection(direction, pixel, forGoodMeasure);
+            }
+            else {
+                return true; // border of correct color has been found
+            }
+        }
+    }
+
+    private boolean is_encircled(int i, int currentColor, int borderColor, double insideTolerance, double borderTolerance) {
         /**
          checks whether first color encountered in cardinal directions (up, down, left, right) is borderColor
          currentColor is the color of the area that the current pixel is in
+         insidetolerance should be smaller than bordertolerance
          */
 
-        double leavingCurrentTolerance = tolerance;
-        double isItBorderTolerance = tolerance;
-        int step = 2;
-
         int max_search_distance = (int)(rowLength*0.2);
-        // in case the jpg noise or whatever else stops us early,
-        // jump a few pixels to be properly in the border color
-        int forGoodMeasure = 2;
 
-        int i_copy = i;
-        int distance = 0;
-        // go UP til you find a new color
-        while (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], currentColor, leavingCurrentTolerance)) {
-            i_copy -= rowLength*step;
-            distance += step;
-            if (distance >= max_search_distance) break;
-        }
-        i_copy -= forGoodMeasure*rowLength;
-        if (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], borderColor, isItBorderTolerance)) {
-//            System.out.println("UP");
-            ;
-        }
-        else {
-            return false;
-        }
+        return checkBorderInDirection(i, Direction.UP, currentColor, borderColor, insideTolerance, borderTolerance, max_search_distance) &&
+        checkBorderInDirection(i, Direction.DOWN, currentColor, borderColor, insideTolerance, borderTolerance, max_search_distance) &&
+        checkBorderInDirection(i, Direction.LEFT, currentColor, borderColor, insideTolerance, borderTolerance, max_search_distance) &&
+        checkBorderInDirection(i, Direction.RIGHT, currentColor, borderColor, insideTolerance, borderTolerance, max_search_distance);
 
-        i_copy = i;
-        distance = 0;
-        // go DOWN til you find a new color
-        while (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], currentColor, leavingCurrentTolerance)) {
-            i_copy += rowLength*step;
-            distance += step;
-//            System.out.println("going down");
-            if (distance >= max_search_distance) break;
-        }
-        i_copy += forGoodMeasure*rowLength;
-        if (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], borderColor, isItBorderTolerance)) {
-            ;
-//            System.out.println("DOWN");
-        }
-        else {
-            return false;
-        }
-
-        i_copy = i;
-        distance = 0;
-        // go LEFT til you find a new color
-        while (i_copy % rowLength >= step && is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], currentColor, leavingCurrentTolerance)) {
-            i_copy -= step;
-            distance += step;
-            if (distance >= max_search_distance) break;
-        }
-        i_copy -= forGoodMeasure;
-        if (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], borderColor, isItBorderTolerance)) {
-            ;
-//            System.out.println("LEFT");
-        }
-        else {
-            return false;
-        }
-
-        i_copy = i;
-        distance = 0;
-        // go RIGHT til you find a new color
-        while ((i_copy + 1) % rowLength >= step && is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], currentColor, leavingCurrentTolerance)) {
-            i_copy += step;
-            distance += step;
-            if (distance >= max_search_distance) break;
-        }
-        i_copy += forGoodMeasure;
-        if (is_in_bounds(i_copy) && is_within_tolerance(src[i_copy], borderColor, isItBorderTolerance)) {
-            ;
-//            System.out.println("RIGHT");
-        }
-        else {
-            return false;
-        }
-//        if (borders == 4) System.out.println("I'm encircled");
-//        System.out.println(borders);
-        return true;
     }
 
     public static boolean euclidian_is_within_tolerance(int actual, int target_color, double tolerance) {
